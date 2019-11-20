@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 
+	"github.com/chentanyi/fileserver/server"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,7 +17,7 @@ func main() {
 	router := gin.Default()
 	group := router.Group(*baseUri)
 
-	group.StaticFS("/", http.Dir(*directory))
+	server.StaticFS(group, "/", *directory)
 
 	router.Run(fmt.Sprintf(":%d", *port))
 }

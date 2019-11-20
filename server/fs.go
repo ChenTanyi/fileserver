@@ -102,6 +102,23 @@ type File interface {
 	Stat() (os.FileInfo, error)
 }
 
+func filesizeToReadable(size int64) string {
+	if size == 0 {
+		return "-"
+	}
+
+	suffixes := []string{" B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}
+	index := 0
+	sz := float64(size)
+	for sz >= 1024 {
+		index++
+		sz /= 1024
+	}
+	return fmt.Sprintf("%.2f%s", sz, suffixes[index])
+}
+
+const timeFormat = "02-Jan-2006 15:04"
+
 func dirList(w http.ResponseWriter, r *http.Request, f File) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
@@ -112,7 +129,11 @@ func dirList(w http.ResponseWriter, r *http.Request, f File) {
 	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	fmt.Fprintf(w, "<head><title>Index of %s</title></head><h1>Index of %s</h1><hr>", r.URL.Path, r.URL.Path)
+
 	fmt.Fprintf(w, "<pre>\n")
+	fmt.Fprintf(w, "<a href=\"../\">../</a>\n")
 	for _, d := range dirs {
 		name := d.Name()
 		if d.IsDir() {
@@ -122,8 +143,15 @@ func dirList(w http.ResponseWriter, r *http.Request, f File) {
 		// part of the URL path, and not indicate the start of a query
 		// string or fragment.
 		url := url.URL{Path: name}
-		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
+
+		formatString := "<a href=\"%s\" style=\"width: 27.5em; display:inline-block; text-overflow: ellipsis; overflow:hidden;\">%s</a>%20s%20d%15s"
+		html := fmt.Sprintf(formatString, url.String(), htmlReplacer.Replace(name), d.ModTime().Format(timeFormat), d.Size(), filesizeToReadable(d.Size()))
+		if d.IsDir() {
+			html = fmt.Sprintf("%s <a href=\"%s?download=tar\">tar</a>", html, url.String())
+		}
+		fmt.Fprintf(w, "%s\n", html)
 	}
+	fmt.Fprintf(w, "<hr>")
 	fmt.Fprintf(w, "</pre>\n")
 }
 
