@@ -651,11 +651,11 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs FileSystem, name strin
 
 	// Still a directory? (we didn't find an index.html file)
 	if d.IsDir() {
-		if checkIfModifiedSince(r, d.ModTime()) == condFalse {
-			writeNotModified(w)
-			return
-		}
-		w.Header().Set("Last-Modified", d.ModTime().UTC().Format(http.TimeFormat))
+		// if checkIfModifiedSince(r, d.ModTime()) == condFalse {
+		// 	writeNotModified(w)
+		// 	return
+		// }
+		// w.Header().Set("Last-Modified", d.ModTime().UTC().Format(http.TimeFormat))
 		dirList(w, r, f)
 		return
 	}
