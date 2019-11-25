@@ -17,7 +17,7 @@ func main() {
 	router := gin.Default()
 	group := router.Group(*baseUri)
 
-	server.StaticFS(group, "/", *directory)
+	server.NewFileServer(group, "/", *directory)
 
 	router.Run(fmt.Sprintf(":%d", *port))
 }
