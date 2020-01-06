@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title> {{ .Title }} </title>
+</head>
+
+<body>
+    <h1> {{ .Title }} </h1>
+    <hr>
+    <table>
+        <tr>
+            <td><a href="../">../</a></td>
+        </tr>
+        {{ range .Files }}
+        <tr>
+            <td><a href="{{ .Link }}">{{ .HtmlName }}</a></td>
+            <td>{{ .ModTime }}</td>
+            <td>{{ .Info.Size }}</td>
+            <td>{{ .SizeReadable }}</td>
+            <td><a href="javascript:void(0)" onclick="delete_file('{{ .Name }}', '{{ .Link }}')">delete</a></td>
+            <td>
+                {{ if .Info.IsDir }}
+                <a href="{{ .Link }}?download=tar">tar</a>
+                {{ end }}
+            </td>
+        </tr>
+        {{ end }}
+    </table>
+    <hr>
+</body>
+<style>
+    table {
+        font-family: monospace;
+    }
+
+    table a {
+        max-width: 50em;
+        display: inline-block;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+    }
+
+    td {
+        padding-right: 5em;
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+</style>
+<script>
+function delete_file(name, url) {
+    var result = confirm(`Want to delete '${name}'?`);
+    if (result) {
+        var request = new XMLHttpRequest();
+
+        request.onreadystatechange = function() {
+            if (request.readyState == request.DONE) {
+                if (100 <= request.status && request.status < 300) {
+                    location.reload();
+                } else {
+                    alert(request.response);
+                }
+            }
+        }
+
+        request.open("DELETE", url);
+        request.send(null);
+    }
+}
+</script>
+
+</html>
