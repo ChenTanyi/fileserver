@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,9 @@ func NewFileServer(router *gin.RouterGroup, relativePath, aliasPath string) {
 	handler := newFileServerHandler(urlPath, aliasPath)
 	router.GET(urlPattern, handler)
 	router.HEAD(urlPattern, handler)
+
+	deleteHandler := deleteFileHandler(urlPath, aliasPath)
+	router.DELETE(urlPattern, deleteHandler)
 }
 
 func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
@@ -30,11 +34,11 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err, ok := recover().(error); ok && err != nil {
-				c.Error(err)
+				c.AbortWithStatusJSON(500, err.Error())
 			}
 		}()
 
-		if strings.Contains(c.Query("download"), "tar") {
+		if c.Query("download") == "tar" {
 			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
 			go func() {
 				if err := Compress(reqFilePath); err != nil {
@@ -49,5 +53,20 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 		}
 
 		fileServer.ServeHTTP(c.Writer, c.Request)
+	}
+}
+
+func deleteFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err, ok := recover().(error); ok && err != nil {
+				c.AbortWithStatusJSON(500, err.Error())
+			}
+		}()
+
+		reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
+		if err := os.RemoveAll(reqFilePath); err != nil {
+			panic(err)
+		}
 	}
 }
