@@ -40,6 +40,10 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 
 		if c.Query("download") == "tar" {
 			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
+			if _, err := os.Stat(reqFilePath); err != nil {
+				panic(err)
+			}
+
 			go func() {
 				if err := Compress(reqFilePath); err != nil {
 					logrus.Errorf("Compress Error: %v", err)
