@@ -19,6 +19,7 @@
             <td>{{ .Info.Size }}</td>
             <td>{{ .SizeReadable }}</td>
             <td><a href="javascript:void(0)" onclick="delete_file('{{ .Name }}', '{{ .Link }}')">delete</a></td>
+            <td><a href="javascript:void(0)" onclick="rename_file('{{ .Name }}', '{{ .Link }}')">rename</a></td>
             <td>
                 {{ if .Info.IsDir }}
                 <a href="{{ .Link }}?download=tar">tar</a>
@@ -49,12 +50,10 @@
     }
 </style>
 <script>
-function delete_file(name, url) {
-    var result = confirm(`Want to delete '${name}'?`);
-    if (result) {
+    function request(method, url, body, header) {
         var request = new XMLHttpRequest();
 
-        request.onreadystatechange = function() {
+        request.onreadystatechange = function () {
             if (request.readyState == request.DONE) {
                 if (100 <= request.status && request.status < 300) {
                     location.reload();
@@ -64,10 +63,39 @@ function delete_file(name, url) {
             }
         }
 
-        request.open("DELETE", url);
-        request.send(null);
+        request.open(method, url);
+        if (header !== undefined || header !== null) {
+            for (const key in header) {
+                request.setRequestHeader(key, header[key])
+            }
+        }
+        request.send(body);
     }
-}
+
+    function delete_file(name, url) {
+        var result = confirm(`Want to delete '${name}'?`);
+        if (result) {
+            request("DELETE", url, null);
+        }
+    }
+
+    function rename_file(name, url) {
+        var result = prompt(`Want to rename '${name}'?`);
+        console.log(result);
+        if (result != null && result != "") {
+            var body = {
+                "action": "rename",
+                "property": {
+                    "name": result,
+                },
+            };
+            var header = {
+                "Content-Type": "application/json;charset=UTF-8",
+            };
+
+            request("POST", url, JSON.stringify(body), header);
+        }
+    }
 </script>
 
 </html>

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -26,6 +27,9 @@ func NewFileServer(router *gin.RouterGroup, relativePath, aliasPath string) {
 
 	deleteHandler := deleteFileHandler(urlPath, aliasPath)
 	router.DELETE(urlPattern, deleteHandler)
+
+	postHandler := updateFileHandler(urlPath, aliasPath)
+	router.POST(urlPattern, postHandler)
 }
 
 func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
@@ -71,6 +75,42 @@ func deleteFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 		reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
 		if err := os.RemoveAll(reqFilePath); err != nil {
 			panic(err)
+		}
+	}
+}
+
+func updateFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err, ok := recover().(error); ok && err != nil {
+				c.AbortWithStatusJSON(500, err.Error())
+			}
+		}()
+
+		body, err := c.GetRawData()
+		if err != nil {
+			panic(err)
+		}
+		logrus.Infof("Body: %s", string(body))
+
+		postParams := &PostParams{}
+		if err = json.Unmarshal(body, postParams); err != nil {
+			panic(err)
+		}
+
+		if postParams.Action == "rename" {
+			if strings.Contains(postParams.Property.Name, "/") {
+				c.Data(400, "text/plain", []byte("Rename with illegel \"/\""))
+				c.Abort()
+			}
+
+			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
+			reqFileDir := filepath.Join(reqFilePath, "..")
+			if err := os.Rename(reqFilePath, filepath.Join(reqFileDir, postParams.Property.Name)); err != nil {
+				panic(err)
+			}
+		} else {
+			c.Data(400, "text/plain", []byte("Unexpected action"))
 		}
 	}
 }
