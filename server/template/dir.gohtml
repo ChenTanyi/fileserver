@@ -8,6 +8,11 @@
 <body>
     <h1> {{ .Title }} </h1>
     <hr>
+    <form name="upload" enctype="multipart/form-data">
+        <input type="file" name="file" id="file">
+        <input type="submit" value="upload" onclick="upload_file()" formaction="javascript:void(0)">
+    </form>
+    <hr>
     <table>
         <tr>
             <td><a href="../">../</a></td>
@@ -64,7 +69,7 @@
         }
 
         request.open(method, url);
-        if (header !== undefined || header !== null) {
+        if (header !== undefined && header !== null) {
             for (const key in header) {
                 request.setRequestHeader(key, header[key])
             }
@@ -90,11 +95,35 @@
                 },
             };
             var header = {
-                "Content-Type": "application/json;charset=UTF-8",
+                "Content-Type": "application/json; charset=UTF-8",
             };
 
             request("POST", url, JSON.stringify(body), header);
         }
+    }
+
+    function upload_file() {
+        const file = document.getElementById("file").files[0];
+        const url = new URL(window.location.href);
+        var formData = new FormData();
+
+        formData.append("file", file)
+        request("POST", url.pathname, formData)
+    }
+
+    function encode_file(file, additional) {
+        var fileId = `${file.name}/${file.size}/${file.lastModified}`;
+        if (additional)
+            fileId += ` ${additional}`;
+        return hash(fileId);
+    }
+
+    function hash(message) {
+        const data = new TextEncoder().encode(message);
+        const hashBuffer = window.crypto.subtle.digest("SHA-256", data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        return hashHex;
     }
 </script>
 
