@@ -1,7 +1,6 @@
 package server
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -87,30 +86,22 @@ func updateFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 			}
 		}()
 
-		body, err := c.GetRawData()
-		if err != nil {
-			panic(err)
-		}
-		logrus.Infof("Body: %s", string(body))
+		// body, err := c.GetRawData()
+		// if err != nil {
+		// 	panic(err)
+		// }
 
-		postParams := &PostParams{}
-		if err = json.Unmarshal(body, postParams); err != nil {
-			panic(err)
-		}
+		// logrus.Infof("Body: %s", string(body))
 
-		if postParams.Action == "rename" {
-			if strings.Contains(postParams.Property.Name, "/") {
-				c.Data(400, "text/plain", []byte("Rename with illegel \"/\""))
-				c.Abort()
-			}
-
-			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
-			reqFileDir := filepath.Join(reqFilePath, "..")
-			if err := os.Rename(reqFilePath, filepath.Join(reqFileDir, postParams.Property.Name)); err != nil {
-				panic(err)
-			}
-		} else {
-			c.Data(400, "text/plain", []byte("Unexpected action"))
+		switch c.ContentType() {
+		case "application/json":
+			postWithJSON(c, aliasPath)
+		case "application/x-www-form-urlencoded":
+			postWithForm(c, aliasPath)
+		case "multipart/form-data":
+			postWithMultiForm(c, aliasPath)
+		default:
+			c.Data(400, "text/plain", []byte(fmt.Sprintf("Unexpected content-type: %s", c.ContentType())))
 		}
 	}
 }
