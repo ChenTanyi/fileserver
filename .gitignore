@@ -1,3 +1,5 @@
 /fileserver
 /fileserver.exe
 bindata.go
+go.mod
+go.sum
