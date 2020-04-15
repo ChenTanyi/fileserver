@@ -8,6 +8,6 @@ run apk update && apk add git && \
     CGO_ENABLED=0 go install
 
 from alpine:latest
-workdir /app
-copy --from=builder /go/bin/fileserver .
-entrypoint ["./fileserver"]
+workdir /
+copy --from=builder /go/bin/fileserver /usr/bin/
+entrypoint ["fileserver"]
