@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/chentanyi/go-utils/filehash"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 )
@@ -57,6 +59,45 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 			query.Del("download")
 			c.Redirect(302, fmt.Sprintf("../?%s", query.Encode()))
 			return
+		}
+
+		if c.Query("hash") != "" {
+			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
+			file, err := os.Open(reqFilePath)
+			if err != nil {
+				panic(err)
+			}
+			defer file.Close()
+
+			stat, err := file.Stat()
+			if err != nil {
+				panic(err)
+			}
+
+			if !stat.IsDir() {
+				rangeHeader := c.GetHeader("Range")
+				ranges, err := parseRange(rangeHeader, stat.Size())
+				if err != nil {
+					panic(err)
+				}
+
+				allError := errors.New("")
+				hashs := make([]string, 0, len(ranges))
+				for _, fileRange := range ranges {
+					digest, err := filehash.HashFileWithFuncName(c.Query("hash"), file, fileRange.start, fileRange.start+fileRange.length)
+					if err != nil {
+						allError = fmt.Errorf("%v\n%v", allError, err)
+					} else {
+						hashs = append(hashs, fmt.Sprintf("%x", digest))
+					}
+				}
+				if allError = TrimEmptyError(allError); allError != nil {
+					panic(allError)
+				}
+
+				c.String(200, strings.Join(hashs, ","))
+				return
+			}
 		}
 
 		fileServer.ServeHTTP(c.Writer, c.Request)
