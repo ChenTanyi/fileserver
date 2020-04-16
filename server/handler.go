@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -79,6 +80,15 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 				ranges, err := parseRange(rangeHeader, stat.Size())
 				if err != nil {
 					panic(err)
+				}
+
+				if len(ranges) == 0 {
+					digest, err := filehash.HashFileWithFuncName(c.Query("hash"), file, 0, math.MaxInt64)
+					if err != nil {
+						panic(err)
+					}
+					c.String(200, fmt.Sprintf("%x", digest))
+					return
 				}
 
 				allError := errors.New("")
