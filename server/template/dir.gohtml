@@ -25,6 +25,7 @@
             <td>{{ .SizeReadable }}</td>
             <td><a href="javascript:void(0)" onclick="delete_file('{{ .Name }}', '{{ .Link }}')">delete</a></td>
             <td><a href="javascript:void(0)" onclick="rename_file('{{ .Name }}', '{{ .Link }}')">rename</a></td>
+            <td><a href="{{ .Link }}?download=hash">hash</a></td>
             <td>
                 {{ if .Info.IsDir }}
                 <a href="{{ .Link }}?download=tar">tar</a>
@@ -49,7 +50,7 @@
     }
 
     td {
-        padding-right: 5em;
+        padding-right: 1em;
         padding-top: 2px;
         padding-bottom: 2px;
     }

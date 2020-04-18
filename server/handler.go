@@ -1,18 +1,14 @@
 package server
 
 import (
-	"errors"
 	"fmt"
-	"math"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
 
-	"github.com/chentanyi/go-utils/filehash"
 	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
 )
 
 func NewFileServer(router *gin.RouterGroup, relativePath, aliasPath string) {
@@ -44,70 +40,12 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 			}
 		}()
 
-		if c.Query("download") == "tar" {
-			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
-			if _, err := os.Stat(reqFilePath); err != nil {
-				panic(err)
-			}
-
-			go func() {
-				if err := Compress(reqFilePath); err != nil {
-					logrus.Errorf("Compress Error: %v", err)
-				}
-			}()
-
-			query := c.Request.URL.Query()
-			query.Del("download")
-			c.Redirect(302, fmt.Sprintf("../?%s", query.Encode()))
-			return
+		done, err := processGetQuery(c, filepath.Join(aliasPath, c.Param("filepath")))
+		if err != nil {
+			panic(err)
 		}
-
-		if c.Query("hash") != "" {
-			reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
-			file, err := os.Open(reqFilePath)
-			if err != nil {
-				panic(err)
-			}
-			defer file.Close()
-
-			stat, err := file.Stat()
-			if err != nil {
-				panic(err)
-			}
-
-			if !stat.IsDir() {
-				rangeHeader := c.GetHeader("Range")
-				ranges, err := parseRange(rangeHeader, stat.Size())
-				if err != nil {
-					panic(err)
-				}
-
-				if len(ranges) == 0 {
-					digest, err := filehash.HashFileWithFuncName(c.Query("hash"), file, 0, math.MaxInt64)
-					if err != nil {
-						panic(err)
-					}
-					c.String(200, fmt.Sprintf("%x", digest))
-					return
-				}
-
-				allError := errors.New("")
-				hashs := make([]string, 0, len(ranges))
-				for _, fileRange := range ranges {
-					digest, err := filehash.HashFileWithFuncName(c.Query("hash"), file, fileRange.start, fileRange.start+fileRange.length)
-					if err != nil {
-						allError = fmt.Errorf("%v\n%v", allError, err)
-					} else {
-						hashs = append(hashs, fmt.Sprintf("%x", digest))
-					}
-				}
-				if allError = TrimEmptyError(allError); allError != nil {
-					panic(allError)
-				}
-
-				c.String(200, strings.Join(hashs, ","))
-				return
-			}
+		if done {
+			return
 		}
 
 		fileServer.ServeHTTP(c.Writer, c.Request)

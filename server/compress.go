@@ -28,12 +28,20 @@ func TarGzCompress(inputDirpath string, outputFilename string) (err error) {
 		return fmt.Errorf("File: %s stat error, err = %v", processingFile, err)
 	}
 
-	if _, err = os.OpenFile(processingFile, os.O_CREATE|os.O_RDWR, 0755); err != nil {
+	if processing, err := os.OpenFile(processingFile, os.O_CREATE|os.O_RDWR, 0755); err != nil {
 		return err
+	} else {
+		processing.Close()
 	}
 
 	defer func() {
-		err = os.Remove(processingFile)
+		if removeErr := os.Remove(processingFile); removeErr != nil {
+			if err == nil {
+				err = removeErr
+			} else {
+				err = fmt.Errorf("%v\n%v", err, removeErr)
+			}
+		}
 	}()
 
 	outputFile, err := os.OpenFile(outputFilename, os.O_CREATE|os.O_RDWR, 0755)
