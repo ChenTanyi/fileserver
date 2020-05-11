@@ -134,8 +134,8 @@ func dealWithNginxUpload(MultiFormValue map[string][]string, requestDir string) 
 	}
 
 	for _, file := range files {
-		if stat, err := os.Stat(file.Path); err != nil || stat.Size() != file.Size {
-			msg := fmt.Sprintf("Stat file error: size = %d, err = %v, file = %v", stat.Size(), err, file)
+		if stat, err := os.Stat(file.Path); err != nil || stat == nil || stat.Size() != file.Size {
+			msg := fmt.Sprintf("Stat file error: err = %v, file = %+v, stat = %+v", err, file, stat)
 			allError = fmt.Errorf("%v\n%s", allError, msg)
 			continue
 		}

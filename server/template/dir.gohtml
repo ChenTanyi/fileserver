@@ -11,6 +11,7 @@
     <form name="upload" enctype="multipart/form-data">
         <input type="file" name="file" id="file">
         <input type="submit" value="upload" onclick="upload_file()" formaction="javascript:void(0)">
+        <input type="submit" value="chunk upload" onclick="resume_upload_file()" formaction="javascript:void(0)">
     </form>
     <hr>
     <table>
@@ -61,7 +62,7 @@
 
         request.onreadystatechange = function () {
             if (request.readyState == request.DONE) {
-                if (100 <= request.status && request.status < 300) {
+                if (200 <= request.status && request.status < 300) {
                     location.reload();
                 } else {
                     alert(request.response);
@@ -104,24 +105,90 @@
     }
 
     function upload_file() {
-        const file = document.getElementById("file").files[0];
-        const url = new URL(window.location.href);
+        const files = document.getElementById("file").files;
+        if (files.length < 1) {
+            alert("Please choose file before upload.");
+            return;
+        }
         var formData = new FormData();
 
-        formData.append("file", file)
-        request("POST", url.pathname, formData)
+        formData.append("file", files[0])
+        request("POST", window.location.pathname, formData)
     }
 
-    function encode_file(file, additional) {
-        var fileId = `${file.name}/${file.size}/${file.lastModified}`;
+    function resume_upload_file() {
+        const files = document.getElementById("file").files;
+        if (files.length < 1) {
+            alert("Please choose file before upload.");
+            return;
+        }
+        send_upload(files[0], 0, null, 2);
+    }
+
+    async function send_upload(file, begin, session_id = null, size = 256 * 1024) {
+        if (size < 2) {
+            alert(`Slice ${file.name} with too small size ${size}`)
+            return
+        }
+        var end = begin + size;
+        if (!session_id) {
+            session_id = await encode_file(file);
+        }
+        var header = {
+            "Content-Type": "application/octet-stream",
+            "Content-Disposition": `attachment; filename="${file.name}"`,
+            "Content-Range": `bytes ${begin}-${end - 1}/${file.size}`,
+            "Session-ID": session_id,
+        };
+
+        var req = new XMLHttpRequest();
+
+        if (end >= file.size) {
+            end = file.size;
+            header["Content-Range"] = `bytes ${begin}-${end - 1}/${file.size}`;
+            req.onreadystatechange = function () {
+                if (req.readyState == req.DONE) {
+                    if (200 <= req.status && req.status < 300) {
+                        location.reload();
+                    } else {
+                        alert(req.response);
+                    }
+                }
+            }
+        } else {
+            req.onreadystatechange = function () {
+                if (req.readyState == req.DONE) {
+                    if (200 <= req.status && req.status < 300) {
+                        try {
+                            var next = parseInt(req.responseText.split('/')[0].split("-")[1]);
+                            send_upload(file, next + 1, session_id);
+                        } catch (error) {
+                            alert(error);
+                        }
+                    } else {
+                        alert(req.response);
+                    }
+                }
+            }
+        }
+
+        req.open("POST", `/upload${window.location.pathname}`);
+        for (const key in header) {
+            req.setRequestHeader(key, header[key])
+        }
+        req.send(file.slice(begin, end));
+    }
+
+    async function encode_file(file, additional = null) {
+        var fileId = `${window.location.pathname}/${file.name}/${file.size}/${file.lastModified}`;
         if (additional)
             fileId += ` ${additional}`;
-        return hash(fileId);
+        return await hash(fileId);
     }
 
-    function hash(message) {
+    async function hash(message) {
         const data = new TextEncoder().encode(message);
-        const hashBuffer = window.crypto.subtle.digest("SHA-256", data);
+        const hashBuffer = await window.crypto.subtle.digest("SHA-256", data);
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         return hashHex;
