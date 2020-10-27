@@ -53,10 +53,12 @@ jobs:
       - name: Prebuild
         run: |
           go version
-          go get -v github.com/go-bindata/go-bindata/go-bindata
-          cd server
-          go-bindata -pkg server template/
-          cd ..
+          if [[ -d "server/template" ]]; then
+            go get -v github.com/go-bindata/go-bindata/go-bindata
+            cd server
+            go-bindata -pkg server template/
+            cd ..
+          fi
       - uses: t-actions/go-build@master
         with:
           platforms: aix/ppc64 android/arm64 darwin/amd64 linux/386 linux/amd64 linux/arm linux/arm64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/riscv64 linux/s390x windows/386 windows/amd64 windows/arm
