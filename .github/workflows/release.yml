@@ -1,4 +1,4 @@
-name: Release
+name: Release and Build Docker
 
 on:
   push:
@@ -12,8 +12,17 @@ on:
         description: Tag for running
 
 jobs:
-  release:
+  cancel_actions:
     runs-on: ubuntu-latest
+    steps:
+      - uses: t-actions/cancel-actions@master
+
+  param:
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.param.outputs.ref }}
+      tag: ${{ steps.param.outputs.tag }}
+      delete: ${{ steps.param.outputs.delete }}
     steps:
       - name: Get Parameters
         id: param
@@ -22,7 +31,11 @@ jobs:
           if [[ -z "${{ github.event.inputs.tag }}" ]]; then
             if [[ "${GITHUB_REF}" == "refs/heads/"* ]]; then
               ref=${GITHUB_REF#refs/heads/}
-              tag="release-${ref}"
+              if [[ "${ref}" == "master" ]]; then
+                tag="latest"
+              else
+                tag="release-${ref}"
+              fi
               delete=1
             else
               ref=${GITHUB_REF#refs/tags/}
@@ -39,39 +52,85 @@ jobs:
           echo "::set-output name=delete::$delete"
         env:
           GITHUB_REF: ${{ github.ref }}
+
+  release:
+    needs: param
+    runs-on: ubuntu-latest
+    env:
+      OUTPUT: build
+    steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ steps.param.outputs.ref }}
+          ref: ${{ needs.param.outputs.ref }}
       - uses: t-actions/delete-tag@master
-        if: ${{ steps.param.outputs.delete }}
+        if: ${{ needs.param.outputs.delete }}
         with:
-          tag: ${{ steps.param.outputs.tag }}
+          tag: ${{ needs.param.outputs.tag }}
           ignore_error: true
       - uses: actions/setup-go@v2
         with:
           go-version: '1.15'
-      - name: Prebuild
-        run: |
-          go version
-          if [[ -d "server/template" ]]; then
-            go get -v github.com/go-bindata/go-bindata/go-bindata
-            cd server
-            go-bindata -pkg server template/
-            cd ..
-          fi
+      - name: PreBuild
+        run: ./prebuild.sh
       - uses: t-actions/go-build@master
         with:
+          output_dir: ${{ env.OUTPUT }}
           platforms: aix/ppc64 android/arm64 darwin/amd64 linux/386 linux/amd64 linux/arm linux/arm64 linux/mips linux/mips64 linux/mips64le linux/mipsle linux/ppc64 linux/ppc64le linux/riscv64 linux/riscv64 linux/s390x windows/386 windows/amd64 windows/arm
       - name: List all build result
         run: |
-          ls -al build
+          ls -al ${{ env.OUTPUT }}
         if: ${{ always() }}
       - name: Upload all build result
         uses: svenstaro/upload-release-action@2.2.0
-        if: ${{ always() }}
         with:
           repo_token: ${{ github.token }}
-          file: build/*
-          tag: ${{ steps.param.outputs.tag }}
+          file: ${{ env.OUTPUT }}/*
+          tag: ${{ needs.param.outputs.tag }}
           file_glob: true
           overwrite: true
+
+  docker:
+    needs: param
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.param.outputs.ref }}
+      - uses: docker/setup-qemu-action@v1
+      - uses: docker/setup-buildx-action@v1
+      - uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v2
+        with:
+          context: .
+          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:${{ needs.param.outputs.tag }}
+
+  aria2-docker:
+    needs: [param, docker]
+    runs-on: ubuntu-latest
+    env:
+      REPOSITORY: chentanyi/dockerfile
+      DOCKERFILE_LOCATION: images/aria2
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: ${{ env.REPOSITORY }}
+      - uses: docker/setup-qemu-action@v1
+      - uses: docker/setup-buildx-action@v1
+      - uses: docker/login-action@v1 
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/build-push-action@v2
+        with:
+          context: ${{ env.DOCKERFILE_LOCATION }}
+          file: ${{ env.DOCKERFILE_LOCATION }}/Dockerfile
+          platforms: linux/386,linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/ppc64le,linux/s390x
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/aria2:${{ needs.param.outputs.tag }}
