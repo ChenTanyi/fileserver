@@ -23,6 +23,8 @@ import (
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/ricochet2200/go-disk-usage/du"
 )
 
 // A Dir implements FileSystem using the native file system restricted to a
@@ -117,7 +119,7 @@ func filesizeToReadable(size int64) string {
 	return fmt.Sprintf("%.2f%s", sz, suffixes[index])
 }
 
-func dirList(w http.ResponseWriter, r *http.Request, f File) {
+func dirList(w http.ResponseWriter, r *http.Request, f File, dirname string) {
 	dirs, err := f.Readdir(-1)
 	if err != nil {
 		log.Printf("http: error reading directory: %v", err)
@@ -127,8 +129,9 @@ func dirList(w http.ResponseWriter, r *http.Request, f File) {
 	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
 
 	htmlTemplate := &DirListHtmlTemplate{
-		Title: fmt.Sprintf("Index of %s", r.URL.Path),
-		Files: []*FileInfo{},
+		Title:         fmt.Sprintf("Index of %s", r.URL.Path),
+		DiskAvailable: filesizeToReadable(int64(du.NewDiskUsage(dirname).Available())),
+		Files:         []*FileInfo{},
 	}
 	for _, d := range dirs {
 		htmlTemplate.Files = append(htmlTemplate.Files, &FileInfo{Info: d})
@@ -644,7 +647,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs FileSystem, name strin
 		// 	return
 		// }
 		// w.Header().Set("Last-Modified", d.ModTime().UTC().Format(http.TimeFormat))
-		dirList(w, r, f)
+		dirList(w, r, f, name)
 		return
 	}
 

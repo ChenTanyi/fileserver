@@ -13,8 +13,9 @@ type FileInfo struct {
 }
 
 type DirListHtmlTemplate struct {
-	Title string
-	Files []*FileInfo
+	Title         string
+	DiskAvailable string
+	Files         []*FileInfo
 }
 
 func (fileInfo *FileInfo) Name() string {
