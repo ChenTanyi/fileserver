@@ -3,12 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"strings"
 
 	"github.com/chentanyi/fileserver/server"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
+	address := flag.String("a", "", "address")
 	port := flag.Int("p", 80, "port")
 	directory := flag.String("d", ".", "directory")
 	baseUri := flag.String("base", "", "base uri")
@@ -19,5 +21,9 @@ func main() {
 
 	server.NewFileServer(group, "/", *directory)
 
-	router.Run(fmt.Sprintf(":%d", *port))
+	if strings.ContainsAny(*address, ":") {
+		router.Run(fmt.Sprintf("[%s]:%d", *address, *port))
+	} else {
+		router.Run(fmt.Sprintf("%s:%d", *address, *port))
+	}
 }
