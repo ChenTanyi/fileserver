@@ -647,7 +647,11 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs FileSystem, name strin
 		// 	return
 		// }
 		// w.Header().Set("Last-Modified", d.ModTime().UTC().Format(http.TimeFormat))
-		dirList(w, r, f, name)
+		if dir, ok := fs.(Dir); ok {
+			dirList(w, r, f, filepath.Join(string(dir), name))
+		} else {
+			dirList(w, r, f, name)
+		}
 		return
 	}
 
