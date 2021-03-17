@@ -12,6 +12,7 @@
         <input type="file" name="file" id="file">
         <input type="submit" value="upload" onclick="upload_file()" formaction="javascript:void(0)">
         <input type="submit" value="chunk upload" onclick="resume_upload_file()" formaction="javascript:void(0)">
+        <input type="submit" value="mkdir" onclick="mkdir()" formaction="javascript:void(0)">
     </form>
     <hr>
     <table>
@@ -77,6 +78,24 @@
             }
         }
         request.send(body);
+    }
+
+    function mkdir() {
+        var result = prompt("Mkdir");
+        console.log(result);
+        if (result != null && result != "") {
+            var body = {
+                "action": "mkdir",
+                "property": {
+                    "name": result,
+                }
+            };
+            var header = {
+                "Content-Type": "application/json; charset=UTF-8",
+            };
+
+            request("POST", window.location.pathname, JSON.stringify(body), header);
+        }
     }
 
     function delete_file(name, url) {
@@ -161,6 +180,7 @@
                     if (200 <= req.status && req.status < 300) {
                         try {
                             var next = parseInt(req.responseText.split('/')[0].split("-")[1]);
+                            console.log(`Uploaded ${file.name} ${next + 1} Bytes`)
                             send_upload(file, next + 1, session_id);
                         } catch (error) {
                             alert(error);

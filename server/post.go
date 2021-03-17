@@ -7,6 +7,7 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -49,9 +50,22 @@ func postWithJSON(c *gin.Context, aliasPath string) {
 		// }
 
 		reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
-		reqFileDir := filepath.Join(reqFilePath, "..")
-		if err := os.Rename(reqFilePath, filepath.Join(reqFileDir, postParams.Property.Name)); err != nil {
+		resultFilePath := filepath.Join(aliasPath, path.Clean("/"+filepath.Join(c.Param("filepath"), "..", postParams.Property.Name)))
+		if err := os.Rename(reqFilePath, resultFilePath); err != nil {
 			panic(err)
+		}
+	} else if postParams.Action == "mkdir" {
+		reqDir := filepath.Join(aliasPath, c.Param("filepath"))
+		if stat, err := os.Stat(reqDir); err != nil {
+			panic(err)
+		} else {
+			if !stat.IsDir() {
+				panic(fmt.Errorf("Parent Dir '%s' is not a dir", reqDir))
+			}
+			err := os.MkdirAll(filepath.Join(reqDir, path.Clean("/"+postParams.Property.Name)), 0755)
+			if err != nil {
+				panic(err)
+			}
 		}
 	} else {
 		c.Data(400, "text/plain", []byte("Unexpected action"))
