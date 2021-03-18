@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -19,19 +18,19 @@ func NewFileServer(router *gin.RouterGroup, relativePath, aliasPath string) {
 	urlPath := path.Join(router.BasePath(), relativePath)
 	urlPattern := path.Join(relativePath, "/*filepath")
 
-	handler := newFileServerHandler(urlPath, aliasPath)
+	handler := newFileServerHandler(urlPath, Dir(aliasPath))
 	router.GET(urlPattern, handler)
 	router.HEAD(urlPattern, handler)
 
-	deleteHandler := deleteFileHandler(urlPath, aliasPath)
+	deleteHandler := deleteFileHandler(urlPath, Dir(aliasPath))
 	router.DELETE(urlPattern, deleteHandler)
 
-	postHandler := updateFileHandler(urlPath, aliasPath)
+	postHandler := updateFileHandler(urlPath, Dir(aliasPath))
 	router.POST(urlPattern, postHandler)
 }
 
-func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
-	fileServer := http.StripPrefix(urlPath, FileServer(Dir(aliasPath)))
+func newFileServerHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
+	fileServer := http.StripPrefix(urlPath, FileServer(aliasPath))
 
 	return func(c *gin.Context) {
 		defer func() {
@@ -40,7 +39,7 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 			}
 		}()
 
-		done, err := processGetQuery(c, filepath.Join(aliasPath, c.Param("filepath")))
+		done, err := processGetQuery(c, aliasPath.Join(c.Param("filepath")))
 		if err != nil {
 			panic(err)
 		}
@@ -52,7 +51,7 @@ func newFileServerHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 	}
 }
 
-func deleteFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
+func deleteFileHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err, ok := recover().(error); ok && err != nil {
@@ -60,14 +59,13 @@ func deleteFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
 			}
 		}()
 
-		reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
-		if err := os.RemoveAll(reqFilePath); err != nil {
+		if err := os.RemoveAll(aliasPath.Join(c.Param("filepath"))); err != nil {
 			panic(err)
 		}
 	}
 }
 
-func updateFileHandler(urlPath string, aliasPath string) gin.HandlerFunc {
+func updateFileHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
 			if err, ok := recover().(error); ok && err != nil {

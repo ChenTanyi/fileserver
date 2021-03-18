@@ -73,11 +73,7 @@ func (d Dir) Open(name string) (File, error) {
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
 	}
-	dir := string(d)
-	if dir == "" {
-		dir = "."
-	}
-	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
+	fullName := d.Join(name)
 	f, err := os.Open(fullName)
 	if err != nil {
 		return nil, mapDirOpenError(err, fullName)
@@ -85,11 +81,21 @@ func (d Dir) Open(name string) (File, error) {
 	return f, nil
 }
 
+// Join with path.Clean
+func (d Dir) Join(name string) string {
+	dir := string(d)
+	if dir == "" {
+		dir = "."
+	}
+	return filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
+}
+
 // A FileSystem implements access to a collection of named files.
 // The elements in a file path are separated by slash ('/', U+002F)
 // characters, regardless of host operating system convention.
 type FileSystem interface {
 	Open(name string) (File, error)
+	Join(name string) string
 }
 
 // A File is returned by a FileSystem's Open method and can be
@@ -647,11 +653,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, fs FileSystem, name strin
 		// 	return
 		// }
 		// w.Header().Set("Last-Modified", d.ModTime().UTC().Format(http.TimeFormat))
-		if dir, ok := fs.(Dir); ok {
-			dirList(w, r, f, filepath.Join(string(dir), name))
-		} else {
-			dirList(w, r, f, name)
-		}
+		dirList(w, r, f, fs.Join(name))
 		return
 	}
 

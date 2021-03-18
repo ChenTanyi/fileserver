@@ -7,7 +7,6 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -31,7 +30,7 @@ type FileProperty struct {
 	Size int64
 }
 
-func postWithJSON(c *gin.Context, aliasPath string) {
+func postWithJSON(c *gin.Context, aliasPath Dir) {
 	body, err := c.GetRawData()
 	if err != nil {
 		panic(err)
@@ -49,20 +48,20 @@ func postWithJSON(c *gin.Context, aliasPath string) {
 		// 	c.Abort()
 		// }
 
-		reqFilePath := filepath.Join(aliasPath, c.Param("filepath"))
-		resultFilePath := filepath.Join(aliasPath, path.Clean("/"+filepath.Join(c.Param("filepath"), "..", postParams.Property.Name)))
+		reqFilePath := aliasPath.Join(c.Param("filepath"))
+		resultFilePath := aliasPath.Join(filepath.Join(c.Param("filepath"), "..", postParams.Property.Name))
 		if err := os.Rename(reqFilePath, resultFilePath); err != nil {
 			panic(err)
 		}
 	} else if postParams.Action == "mkdir" {
-		reqDir := filepath.Join(aliasPath, c.Param("filepath"))
+		reqDir := aliasPath.Join(c.Param("filepath"))
 		if stat, err := os.Stat(reqDir); err != nil {
 			panic(err)
 		} else {
 			if !stat.IsDir() {
 				panic(fmt.Errorf("Parent Dir '%s' is not a dir", reqDir))
 			}
-			err := os.MkdirAll(filepath.Join(reqDir, path.Clean("/"+postParams.Property.Name)), 0755)
+			err := os.MkdirAll(Dir(reqDir).Join(postParams.Property.Name), 0755)
 			if err != nil {
 				panic(err)
 			}
@@ -72,7 +71,7 @@ func postWithJSON(c *gin.Context, aliasPath string) {
 	}
 }
 
-func postWithForm(c *gin.Context, aliasPath string) {
+func postWithForm(c *gin.Context, aliasPath Dir) {
 	err := c.Request.ParseForm()
 	if err != nil {
 		panic(err)
@@ -81,10 +80,10 @@ func postWithForm(c *gin.Context, aliasPath string) {
 	c.JSON(200, c.Request.Form)
 }
 
-func postWithMultiForm(c *gin.Context, aliasPath string) {
-	requestDir := filepath.Join(aliasPath, c.Param("filepath"))
+func postWithMultiForm(c *gin.Context, aliasPath Dir) {
+	requestDir := aliasPath.Join(c.Param("filepath"))
 	if stat, err := os.Stat(requestDir); err != nil || !stat.IsDir() {
-		tmpDir := filepath.Join(requestDir, "..")
+		tmpDir := aliasPath.Join(filepath.Join(c.Param("filepath"), ".."))
 		if stat, err = os.Stat(tmpDir); err != nil || !stat.IsDir() {
 			panic(fmt.Errorf("Request path is not dir, err = %v, path = %s", err, requestDir))
 		} else {
@@ -154,7 +153,7 @@ func dealWithNginxUpload(MultiFormValue map[string][]string, requestDir string) 
 			continue
 		}
 
-		targetFile := filepath.Join(requestDir, file.Name)
+		targetFile := Dir(requestDir).Join(file.Name)
 		logrus.Infof("Rename file: %s -> %s", file.Path, targetFile)
 		if err := os.Rename(file.Path, targetFile); err != nil {
 			msg := fmt.Sprintf("Rename err: current path = %s, target path = %s, err = %v", file.Path, targetFile, err)
@@ -178,7 +177,7 @@ func dealWithFileUpload(MultiFormFile map[string][]*multipart.FileHeader, reques
 			}
 
 			defer file.Close()
-			filename := filepath.Join(requestDir, f.Filename)
+			filename := Dir(requestDir).Join(f.Filename)
 			targetFile, err := os.OpenFile(filename, os.O_CREATE|os.O_RDWR, 0644)
 			if err != nil {
 				msg := fmt.Sprintf("Create file error: filename = %s, err = %v", filename, err)
