@@ -21,9 +21,13 @@ func main() {
 
 	server.NewFileServer(group, "/", *directory)
 
+	var listenAddr string
 	if strings.ContainsAny(*address, ":") {
-		router.Run(fmt.Sprintf("[%s]:%d", *address, *port))
+		listenAddr = fmt.Sprintf("[%s]:%d", *address, *port)
 	} else {
-		router.Run(fmt.Sprintf("%s:%d", *address, *port))
+		listenAddr = fmt.Sprintf("%s:%d", *address, *port)
+	}
+	if err := router.Run(listenAddr); err != nil {
+		panic(err)
 	}
 }
