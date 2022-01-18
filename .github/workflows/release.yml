@@ -7,9 +7,6 @@ on:
     tags:
       - "*"
   workflow_dispatch:
-    inputs:
-      tag:
-        description: Tag for running
 
 jobs:
   cancel_actions:
@@ -22,36 +19,10 @@ jobs:
     outputs:
       ref: ${{ steps.param.outputs.ref }}
       tag: ${{ steps.param.outputs.tag }}
-      delete: ${{ steps.param.outputs.delete }}
+      is_branch: ${{ steps.param.outputs.is_branch }}
     steps:
-      - name: Get Parameters
-        id: param
-        run: |
-          set -x
-          if [[ -z "${{ github.event.inputs.tag }}" ]]; then
-            if [[ "${GITHUB_REF}" == "refs/heads/"* ]]; then
-              ref=${GITHUB_REF#refs/heads/}
-              if [[ "${ref}" == "master" ]]; then
-                tag="latest"
-              else
-                tag="release-${ref}"
-              fi
-              delete=1
-            else
-              ref=${GITHUB_REF#refs/tags/}
-              tag=${ref}
-              delete=''
-            fi
-          else
-            ref=${{ github.event.inputs.tag }}
-            tag=${ref}
-            delete=''
-          fi
-          echo "::set-output name=ref::$ref"
-          echo "::set-output name=tag::$tag"
-          echo "::set-output name=delete::$delete"
-        env:
-          GITHUB_REF: ${{ github.ref }}
+      - id: param
+        uses: t-actions/calc-release@master
 
   release:
     needs: param
@@ -63,7 +34,7 @@ jobs:
         with:
           ref: ${{ needs.param.outputs.ref }}
       - uses: t-actions/delete-tag@master
-        if: ${{ needs.param.outputs.delete }}
+        if: ${{ needs.param.outputs.is_branch }}
         with:
           tag: ${{ needs.param.outputs.tag }}
           ignore_error: true
@@ -79,7 +50,6 @@ jobs:
       - name: List all build result
         run: |
           ls -al ${{ env.OUTPUT }}
-        if: ${{ always() }}
       - name: Upload all build result
         uses: svenstaro/upload-release-action@2.2.0
         with:
