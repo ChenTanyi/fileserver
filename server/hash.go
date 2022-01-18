@@ -70,7 +70,10 @@ func HashToFile(inputDirpath, outputFilename, hashFunc string) (err error) {
 
 		defer inputFile.Close()
 
-		filename := strings.TrimPrefix(strings.Replace(path, inputDirpath, "", -1), string(filepath.Separator))
+		filename, err := filepath.Rel(inputDirpath, path)
+		if err != nil {
+			return err
+		}
 		filename = filepath.ToSlash(filepath.Join(folderName, filename))
 
 		digest, err := filehash.HashAllFileWithFuncName(hashFunc, inputFile)
