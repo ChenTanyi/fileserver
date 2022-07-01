@@ -10,11 +10,10 @@
 
 ## Build
 
-#### with GO 1.12+
+#### with GO 1.16+
 
 ```bash
 git clone https://github.com/chentanyi/fileserver
-bash prebuild.sh
 go build
 ```
 
@@ -22,13 +21,5 @@ go build
 
 ```bash
 git clone https://github.com/chentanyi/fileserver
-docker build -f Dockerfile.prebuild .
-```
-
-#### with Docker and GO 1.12+
-
-```bash
-git clone https://github.com/chentanyi/fileserver
-bash prebuild.sh
 docker build .
 ```

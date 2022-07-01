@@ -7,6 +7,7 @@
 package server
 
 import (
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
@@ -26,6 +27,9 @@ import (
 
 	"github.com/ricochet2200/go-disk-usage/du"
 )
+
+//go:embed template/dir.gohtml
+var dirTemplate string
 
 // A Dir implements FileSystem using the native file system restricted to a
 // specific directory tree.
@@ -143,7 +147,7 @@ func dirList(w http.ResponseWriter, r *http.Request, f File, dirname string) {
 		htmlTemplate.Files = append(htmlTemplate.Files, &FileInfo{Info: d})
 	}
 
-	tpl := template.Must(template.New("DirList").Parse(string(MustAsset("template/dir.gohtml"))))
+	tpl := template.Must(template.New("DirList").Parse(dirTemplate))
 	err = tpl.Execute(w, htmlTemplate)
 	if err != nil {
 		log.Printf("http: error reading directory: %v", err)
