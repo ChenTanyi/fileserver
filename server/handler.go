@@ -18,7 +18,7 @@ func NewFileServer(router *gin.RouterGroup, relativePath, aliasPath string) {
 	urlPath := path.Join(router.BasePath(), relativePath)
 	urlPattern := path.Join(relativePath, "/*filepath")
 
-	handler := newFileServerHandler(urlPath, Dir(aliasPath))
+	handler := getFileHandler(urlPath, Dir(aliasPath))
 	router.GET(urlPattern, handler)
 	router.HEAD(urlPattern, handler)
 
@@ -27,9 +27,12 @@ func NewFileServer(router *gin.RouterGroup, relativePath, aliasPath string) {
 
 	postHandler := updateFileHandler(urlPath, Dir(aliasPath))
 	router.POST(urlPattern, postHandler)
+
+	putHandler := uploadFileHandler(urlPath, Dir(aliasPath))
+	router.PUT(urlPattern, putHandler)
 }
 
-func newFileServerHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
+func getFileHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
 	fileServer := http.StripPrefix(urlPath, FileServer(aliasPath))
 
 	return func(c *gin.Context) {
@@ -88,7 +91,18 @@ func updateFileHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
 		case "multipart/form-data":
 			postWithMultiForm(c, aliasPath)
 		default:
-			c.Data(400, "text/plain", []byte(fmt.Sprintf("Unexpected content-type: %s", c.ContentType())))
+			c.String(400, fmt.Sprintf("Unexpected content-type: %s", c.ContentType()))
 		}
+	}
+}
+
+func uploadFileHandler(urlPath string, aliasPath Dir) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		defer func() {
+			if err, ok := recover().(error); ok && err != nil {
+				c.AbortWithStatusJSON(500, err.Error())
+			}
+		}()
+		uploadFile(c, aliasPath.Join(c.Param("filepath")))
 	}
 }
