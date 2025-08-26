@@ -1,4 +1,4 @@
-from golang:1.16-alpine as builder
+from golang:1.25-alpine as builder
 
 add . /go/src/github.com/chentanyi/fileserver
 run apk update && apk add git && \
