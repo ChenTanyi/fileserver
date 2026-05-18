@@ -19,8 +19,9 @@ func main() {
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-	group := router.Group(*baseUri)
+	router.Use(server.FaviconMiddleware())
 
+	group := router.Group(*baseUri)
 	server.NewFileServer(group, "/", *directory)
 
 	// Print local address
