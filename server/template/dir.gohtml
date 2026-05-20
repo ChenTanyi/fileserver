@@ -25,12 +25,12 @@
             <td>{{ .ModTime }}</td>
             <td>{{ .Info.Size }}</td>
             <td>{{ .SizeReadable }}</td>
-            <td><a href="javascript:void(0)" onclick="delete_file('{{ .Name }}', '{{ .Link }}')">delete</a></td>
-            <td><a href="javascript:void(0)" onclick="rename_file('{{ .Name }}', '{{ .Link }}')">rename</a></td>
-            <td><a href="{{ .Link }}?download=hash" onclick="return confirm(`Want to hash '{{ .Name }}'?`)">hash</a></td>
+            <td><a href="javascript:void(0)" onclick="delete_file('{{ .HtmlName }}', '{{ .Link }}')">delete</a></td>
+            <td><a href="javascript:void(0)" onclick="rename_file('{{ .HtmlName }}', '{{ .Link }}')">rename</a></td>
+            <td><a href="{{ .Link }}?download=hash" onclick="return confirm(`Want to hash '{{ .HtmlName }}'?`)">hash</a></td>
             <td>
                 {{ if .Info.IsDir }}
-                <a href="{{ .Link }}?download=tar" onclick="return confirm(`Want to tar '{{ .Name }}'?`)">tar</a>
+                <a href="{{ .Link }}?download=tar" onclick="return confirm(`Want to tar '{{ .HtmlName }}'?`)">tar</a>
                 {{ end }}
             </td>
         </tr>
@@ -157,7 +157,7 @@
 
         var header = {
             "Content-Type": "application/octet-stream",
-            "Content-Disposition": `attachment; filename="${file.name}"`,
+            "Content-Disposition": `attachment; filename="${encodeURIComponent(file.name)}"`,
             "Content-Range": `bytes ${begin}-${end - 1}/${file.size}`,
             "Range": `bytes=${begin}-${end - 1}`,
         };
